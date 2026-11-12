@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollRecorder, ScrollPlayer } from '../lib/scroll';
 
 export const useScrollEngine = (refContainer, song, onUpdate) => {
@@ -21,14 +21,14 @@ export const useScrollEngine = (refContainer, song, onUpdate) => {
 
     const toggleRecord = () => {
         if (status === 'RECORDING') {
-            const checkpoints = recorder.current.stop();
+            const checkpoints = recorder.current.stop(refContainer.current?.scrollTop);
             setStatus('IDLE');
             if (onUpdate) {
                 onUpdate({ ...song, scrollData: checkpoints });
             }
         } else {
             setStatus('RECORDING');
-            recorder.current.start();
+            recorder.current.start(refContainer.current?.scrollTop ?? 0);
         }
     };
 
@@ -48,5 +48,11 @@ export const useScrollEngine = (refContainer, song, onUpdate) => {
         }
     };
 
-    return { status, toggleRecord, togglePlay, handleScroll };
+    // Drag gesture hooks: only the start and end of each drag are recorded.
+    // The recorder itself checks whether it is recording.
+    const gestureStart = useCallback((y) => recorder.current.beginGesture(y), []);
+    const gestureMove = useCallback(() => recorder.current.moveGesture(), []);
+    const gestureEnd = useCallback((y) => recorder.current.endGesture(y), []);
+
+    return { status, toggleRecord, togglePlay, handleScroll, gestureStart, gestureMove, gestureEnd };
 };

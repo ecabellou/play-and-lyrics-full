@@ -25,7 +25,7 @@ export const SongReader = ({ song, onBack, onUpdate }) => {
         onUpdate(updatedSong);
     };
 
-    const { status, toggleRecord, togglePlay, handleScroll } = useScrollEngine(
+    const { status, toggleRecord, togglePlay, handleScroll, gestureStart, gestureMove, gestureEnd } = useScrollEngine(
         contentRef,
         localSong,
         handleEngineUpdate
@@ -168,10 +168,12 @@ export const SongReader = ({ song, onBack, onUpdate }) => {
             isDragging = true;
             startY = pageY;
             startScroll = slider.scrollTop;
+            gestureStart(slider.scrollTop);
             document.body.classList.add('no-select');
         };
 
         const stopDragging = () => {
+            if (isDragging) gestureEnd(slider.scrollTop);
             isDragging = false;
             document.body.classList.remove('no-select');
         };
@@ -181,7 +183,9 @@ export const SongReader = ({ song, onBack, onUpdate }) => {
             if (e.cancelable) e.preventDefault();
             const currentY = pageY;
             const diff = (startY - currentY) * 1.5;
+            const before = slider.scrollTop;
             slider.scrollTop = startScroll + diff;
+            if (slider.scrollTop !== before) gestureMove();
         };
 
         const onMouseDown = (e) => startDragging(e.pageY);
@@ -211,7 +215,7 @@ export const SongReader = ({ song, onBack, onUpdate }) => {
             slider.removeEventListener('touchmove', onTouchMove);
             slider.removeEventListener('touchend', onTouchEnd);
         };
-    }, [isEditing, status]);
+    }, [isEditing, status, gestureStart, gestureMove, gestureEnd]);
 
     return (
         <Layout className="bg-black">

@@ -3,31 +3,62 @@ export class ScrollRecorder {
         this.startTime = null;
         this.isRecording = false;
         this.checkpoints = [];
+        this.resetGesture();
     }
 
-    start() {
+    resetGesture() {
+        this.gestureActive = false;
+        this.gestureMoved = false;
+        this.gestureStartY = 0;
+    }
+
+    start(initialY = 0) {
         this.isRecording = true;
         this.checkpoints = [];
+        this.resetGesture();
         this.startTime = Date.now();
         // Record initial state
-        this.recordCheckpoint(0);
+        this.checkpoints.push({ t: 0, y: initialY });
     }
 
+    // Fallback for scrolls without a drag gesture (mouse wheel, keyboard).
+    // Ignored while a drag gesture is active: drags only record start and end.
     recordCheckpoint(scrollY) {
-        if (!this.isRecording) return;
-        const time = Date.now() - this.startTime;
-
-        // Avoid duplicate checkpoints if scroll hasn't changed meaningfully
-        // or if time delta is too small (throttle)
+        if (!this.isRecording || this.gestureActive) return;
         const last = this.checkpoints[this.checkpoints.length - 1];
-        if (last && last.y === scrollY && (time - last.t) < 100) return;
-
-        this.checkpoints.push({ t: time, y: scrollY });
+        if (last && last.y === scrollY) return;
+        this.checkpoints.push({ t: Date.now() - this.startTime, y: scrollY });
     }
 
-    stop() {
+    // Finger/mouse down: nothing is recorded yet, only the starting position.
+    beginGesture(scrollY) {
+        if (!this.isRecording) return;
+        this.gestureActive = true;
+        this.gestureMoved = false;
+        this.gestureStartY = scrollY;
+    }
+
+    // First real movement of the gesture: record the start point.
+    // Everything in between (pauses, speed changes) is ignored.
+    moveGesture() {
+        if (!this.isRecording || !this.gestureActive || this.gestureMoved) return;
+        this.gestureMoved = true;
+        this.checkpoints.push({ t: Date.now() - this.startTime, y: this.gestureStartY });
+    }
+
+    // Finger/mouse up: record the end point.
+    endGesture(scrollY) {
+        if (!this.isRecording || !this.gestureActive) return;
+        if (this.gestureMoved) {
+            this.checkpoints.push({ t: Date.now() - this.startTime, y: scrollY });
+        }
+        this.resetGesture();
+    }
+
+    stop(currentY) {
+        if (this.gestureActive && currentY !== undefined) this.endGesture(currentY);
         this.isRecording = false;
-        // Ensure the final resting position is recorded
+        this.resetGesture();
         return this.checkpoints;
     }
 }
