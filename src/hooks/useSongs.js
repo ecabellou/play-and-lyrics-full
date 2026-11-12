@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { APP_CONFIG } from '../config';
 import { songService } from '../lib/db';
 import { parserService } from '../lib/parser';
+import { deserializeSong } from '../lib/backup';
 
 export const useSongs = () => {
     const [songs, setSongs] = useState([]);
@@ -62,9 +63,7 @@ export const useSongs = () => {
             if (!Array.isArray(data)) throw new Error("Formato inválido");
 
             for (const song of data) {
-                // Audio files can't be stored in the JSON backup; they arrive as {}
-                if (song.audio && !(song.audio instanceof Blob)) delete song.audio;
-                await songService.save(song);
+                await songService.save(deserializeSong(song));
             }
             await loadSongs();
         } catch (err) {

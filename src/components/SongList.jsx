@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Plus, Music, Trash2, Search, Download, Upload, ShieldCheck, X, Maximize } from 'lucide-react';
 import { Layout } from './Layout';
 import { APP_CONFIG } from '../config';
+import { serializeSongs } from '../lib/backup';
 
 export const SongList = ({ songs, onSelect, onImport, onDelete, onImportBackup }) => {
     const fileInputRef = useRef(null);
@@ -25,16 +26,29 @@ export const SongList = ({ songs, onSelect, onImport, onDelete, onImportBackup }
         }
     };
 
-    const handleExportBackup = () => {
-        const dataStr = JSON.stringify(songs, null, 2);
-        const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(dataBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `respaldo_lyrics_sync_${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    const [exporting, setExporting] = useState(false);
+
+    const handleExportBackup = async () => {
+        if (exporting) return;
+        setExporting(true);
+        try {
+            // Includes lyrics, scroll recordings and the attached audio
+            const dataStr = JSON.stringify(await serializeSongs(songs));
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `respaldo_lyrics_sync_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+        } catch (err) {
+            console.error('Backup error:', err);
+            alert('Error al crear la copia de seguridad');
+        } finally {
+            setExporting(false);
+        }
     };
 
     const handleImportBackup = async (e) => {
@@ -126,7 +140,7 @@ export const SongList = ({ songs, onSelect, onImport, onDelete, onImportBackup }
                         onClick={() => onSelect(song)}
                         className="glass-panel p-6 cursor-pointer hover:bg-white/10 transition-colors group relative border border-white/5"
                     >
-                        <div className="flex items-start justify-between">
+                        <div className="flex items-start justify-between pr-12">
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                                     <Music size={24} />
@@ -143,11 +157,13 @@ export const SongList = ({ songs, onSelect, onImport, onDelete, onImportBackup }
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
-                                if (confirm('¿Borrar canción?')) onDelete(song.id);
+                                if (confirm(`¿Eliminar "${song.title}"?\n\nSe borrarán la letra, el audio y la grabación del movimiento. No se puede deshacer.`)) onDelete(song.id);
                             }}
-                            className="absolute top-4 right-4 p-2 text-white/10 hover:text-red-400 hover:bg-white/5 rounded-full transition-all opacity-0 group-hover:opacity-100"
+                            className="absolute top-1/2 -translate-y-1/2 right-3 p-3 text-white/40 hover:text-red-400 active:text-red-400 hover:bg-white/5 rounded-full transition-all"
+                            title="Eliminar canción"
+                            aria-label={`Eliminar ${song.title}`}
                         >
-                            <Trash2 size={16} />
+                            <Trash2 size={20} />
                         </button>
                     </div>
                 ))}
@@ -188,7 +204,7 @@ export const SongList = ({ songs, onSelect, onImport, onDelete, onImportBackup }
                         className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 border border-white/5 text-white/60 hover:text-white hover:bg-zinc-800 transition-all text-sm"
                     >
                         <Download size={18} />
-                        Descargar Copia de Seguridad
+                        {exporting ? 'Preparando copia...' : 'Descargar Copia de Seguridad'}
                     </button>
                     <button
                         onClick={() => backupInputRef.current?.click()}
