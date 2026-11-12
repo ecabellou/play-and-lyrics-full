@@ -32,7 +32,8 @@ export const SongReader = ({ song, onBack, onUpdate }) => {
     );
 
     useEffect(() => {
-        if (song.audio) {
+        // Restored backups can carry an empty object instead of a real audio file
+        if (song.audio instanceof Blob) {
             const url = URL.createObjectURL(song.audio);
             setAudioUrl(url);
             return () => URL.revokeObjectURL(url);
@@ -264,11 +265,11 @@ export const SongReader = ({ song, onBack, onUpdate }) => {
                         onClick={() => fileInputRef.current?.click()}
                         className={clsx(
                             "p-2 sm:p-2 rounded-lg text-xs font-bold border transition-all",
-                            localSong.audio
+                            localSong.audio instanceof Blob
                                 ? "bg-green-600/20 border-green-600/50 text-green-400"
                                 : "bg-zinc-800 border-white/10 text-white/40"
                         )}
-                        title={localSong.audio ? "Cambiar Audio" : "Adjuntar Audio"}
+                        title={localSong.audio instanceof Blob ? "Cambiar Audio" : "Adjuntar Audio"}
                     >
                         <Music size={16} />
                     </button>

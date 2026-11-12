@@ -62,6 +62,8 @@ export const useSongs = () => {
             if (!Array.isArray(data)) throw new Error("Formato inválido");
 
             for (const song of data) {
+                // Audio files can't be stored in the JSON backup; they arrive as {}
+                if (song.audio && !(song.audio instanceof Blob)) delete song.audio;
                 await songService.save(song);
             }
             await loadSongs();
